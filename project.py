@@ -4,14 +4,16 @@ import pygame
 import os
 import sys
 
+f = [int(x) for x in open(os.path.join('data', 'records.txt')).read().split('\n')]
+RECORDS = {(0, 'snake'): f[0], (1, '2048'): f[1], (2, 'jump'): f[2], (3, 'maze'):f[3]}
 
 def terminate():
     pygame.quit()
     sys.exit()
 
 
-def load_image(name, color_key=None):
-    fullname = os.path.join('data', name)
+def load_image(*name, color_key=None):
+    fullname = os.path.join('data', *name)
     image = pygame.image.load(fullname)
 
     if color_key is not None:
@@ -89,9 +91,12 @@ class Button(pygame.sprite.Sprite):
 
 
 def f_game1():
-    fps_game1 = 15
+    font = pygame.font.Font(None, 30)
+    rec_snake = RECORDS[(0, 'snake')]
+    now_snake = 0
+    fps_game1 = 6
     snake = [(15, 15), (16, 15), (17, 15)]
-    vx, vy = 0, -1
+    vx, vy = -1, 0
     apple = (random.randrange(0, 20), random.randrange(0, 20))
     while apple in snake:
         apple = (random.randrange(0, 20), random.randrange(0, 20))
@@ -101,6 +106,7 @@ def f_game1():
     back.add(game1_sprites)
     board = Board(20, 20, snake, apple)
     board.set_view(100, 100, 20)
+    end = False
 
     while True:
         screen.fill('#000000')
@@ -111,7 +117,7 @@ def f_game1():
                 coords = pygame.mouse.get_pos()
                 if back.rect.collidepoint(coords):
                     return
-            elif event.type == pygame.KEYDOWN:
+            elif event.type == pygame.KEYDOWN and not end:
                 if event.key == pygame.K_RIGHT and vy != -1:
                     vx, vy = 0, 1
                 elif event.key == pygame.K_LEFT and vy != 1:
@@ -120,20 +126,32 @@ def f_game1():
                     vx, vy = -1, 0
                 elif event.key == pygame.K_DOWN and vx != -1:
                     vx, vy = 1, 0
-
-        if (snake[0][0] + vx, snake[0][1] + vy) == apple:
-            snake = [(snake[0][0] + vx, snake[0][1] + vy)] + snake[:]
-            apple = (random.randrange(0, 20), random.randrange(0, 20))
-            while apple in snake:
+        if snake[0][0]  + vx == -1 or snake[0][1] + vy < 0 or snake[0][0] + vx > 19 or snake[0][1] + vy > 19 or len(snake) != len(set(snake)):
+            end = True
+        if not end:
+            if (snake[0][0] + vx, snake[0][1] + vy) == apple:
+                snake = [(snake[0][0] + vx, snake[0][1] + vy)] + snake[:]
                 apple = (random.randrange(0, 20), random.randrange(0, 20))
-        else:
-            snake = [(snake[0][0] + vx, snake[0][1] + vy)] + snake[:-1]
+                while apple in snake:
+                    apple = (random.randrange(0, 20), random.randrange(0, 20))
+                now_snake += 10
+                if rec_snake < now_snake:
+                    rec_snake = now_snake
+                    RECORDS[(0, 'snake')] = now_snake
+                    f = open(os.path.join('data', 'records.txt'), mode='w')
+                    f.write('\n'.join([str(RECORDS[game]) for game in sorted(RECORDS)]))
+                    f.close()
+            else:
+                snake = [(snake[0][0] + vx, snake[0][1] + vy)] + snake[:-1]
 
-        if snake[0][0] == -1 or snake[0][1] < 0 or snake[0][0] > 19 or snake[0][1] > 19 or len(snake) != len(set(snake)):
-            break
+        string_rendered = font.render(f'{now_snake} / {rec_snake}', 1, pygame.Color('red'))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.top = 50
+        intro_rect.x = 400
 
         game1_sprites.draw(screen)
         board.render(snake, apple)
+        screen.blit(string_rendered, intro_rect)
         pygame.display.flip()
 
         clock.tick(fps_game1)
@@ -141,9 +159,9 @@ def f_game1():
 
 def f_game2():
     clock = pygame.time.Clock()
-    game1_sprites = pygame.sprite.Group()
-    back = Button(load_image('back.jpg'), 100, 100)
-    back.add(game1_sprites)
+    game2_sprites = pygame.sprite.Group()
+    back = Button(load_image('back.jpg'), 600, 400)
+    back.add(game2_sprites)
 
     while True:
         screen.fill('#000000')
@@ -154,16 +172,17 @@ def f_game2():
                 coords = pygame.mouse.get_pos()
                 if back.rect.collidepoint(coords):
                     return
-        game1_sprites.draw(screen)
+        game2_sprites.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)
 
 def f_game3():
     clock = pygame.time.Clock()
-    game1_sprites = pygame.sprite.Group()
-    back = Button(load_image('back.jpg'), 100, 100)
-    back.add(game1_sprites)
-
+    game3_sprites = pygame.sprite.Group()
+    back = Button(load_image('back.jpg'), 600, 450)
+    back.add(game3_sprites)
+    map_2048 = [[int(x) for x in line.strip().split()] for line in open(os.path.join('data', '2048', 'map.txt')).readlines()]
+    print(map_2048)
     while True:
         screen.fill('#000000')
         for event in pygame.event.get():
@@ -173,7 +192,15 @@ def f_game3():
                 coords = pygame.mouse.get_pos()
                 if back.rect.collidepoint(coords):
                     return
-        game1_sprites.draw(screen)
+        pygame.draw.rect(screen, (100, 100, 100), (60, 60, 480, 480))
+        game3_sprites.draw(screen)
+
+        for i in range(0, 6):
+            for j in range(0, 6):
+                #pygame.draw.rect(screen, (10, 10, 10), (60 + i * 80 + 1, 60 + j * 80 + 1, 78, 78))
+                #rect = load_image(f'2048/{map_2048[i][j]}.jpg').get_rect().move(60 + i * 80, 60 + j * 80)
+                screen.blit(load_image('2048', f'{map_2048[i][j]}.jpg'), (60 + i * 80, 60 + j * 80))
+
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -197,13 +224,25 @@ def f_game4():
         clock.tick(FPS)
 
 def f_records():
+    screen.fill('#000000')
     clock = pygame.time.Clock()
     game1_sprites = pygame.sprite.Group()
-    back = Button(load_image('back.jpg'), 100, 100)
+    back = Button(load_image('back.jpg'), 600, 400)
     back.add(game1_sprites)
+    rec = [str(x) for x in RECORDS]
+    font = pygame.font.Font(None, 30)
+    text_coord = 50
+    for game in sorted(RECORDS):
+        string_rendered = font.render(f'{game[-1]}: {RECORDS[game]}', 1, pygame.Color('red'))
+        intro_rect = string_rendered.get_rect()
+        text_coord += 50
+        intro_rect.top = text_coord
+        intro_rect.x = 400
+        text_coord += intro_rect.height
+        screen.blit(string_rendered, intro_rect)
+
 
     while True:
-        screen.fill('#000000')
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
@@ -254,16 +293,16 @@ def f_settings():
         clock.tick(FPS)
 
 def start_screen():
-    fon = load_image('fon.jpg')
+    fon = load_image('start screen', 'fon.jpg')
     screen.blit(fon, (0, 0))
 
-    game1 = Button(load_image('snake.jpg'), 100, 100)
-    game2 = Button(load_image('jump.jpg'), 325, 100)
-    game3 = Button(load_image('2048.jpg'), 100, 350)
-    game4 = Button(load_image('maze.jpg'), 325, 350)
-    records = Button(load_image('records.jpg'), 550, 100)
-    rules = Button(load_image('rules.jpg'), 550, 200)
-    settings = Button(load_image('settings.jpg'), 550, 450)
+    game1 = Button(load_image('start screen', 'snake.jpg'), 100, 100)
+    game2 = Button(load_image('start screen', 'jump.jpg'), 325, 100)
+    game3 = Button(load_image('start screen', '2048.jpg'), 100, 350)
+    game4 = Button(load_image('start screen', 'maze.jpg'), 325, 350)
+    records = Button(load_image('start screen', 'records.jpg'), 550, 100)
+    rules = Button(load_image('start screen', 'rules.jpg'), 550, 200)
+    settings = Button(load_image('start screen', 'settings.jpg'), 550, 450)
     button_sprites = pygame.sprite.Group(game1, game2, game3, game4, records, rules, settings)
     clock = pygame.time.Clock()
     while True:
