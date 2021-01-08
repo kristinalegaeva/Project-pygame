@@ -339,22 +339,40 @@ def f_game4():
             self.image = images[-1]
             self.rect = self.image.get_rect().move(x, y)
 
+    class Point(pygame.sprite.Sprite):
+        def __init__(self, x, y):
+            super().__init__(points_group, game4_sprites)
+            self.image = images[-2]
+            self.rect = self.image.get_rect().move(x, y)
+
     clock = pygame.time.Clock()
     game4_sprites = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
+    points_group = pygame.sprite.Group()
     back = Button(load_image('back.jpg'), 600, 400)
     back.add(game4_sprites)
     images = {}
+    rec_maze = RECORDS[(3, 'maze')]
+    now_maze = 0
+    font = pygame.font.Font(None, 30)
+
+    end = False
     for x in range(-1, 16):
         images[x] = load_image('maze', f'{x}.jpg')
+    images[-2] = load_image('maze', '-2.png')
+    images[-3] = load_image('maze', '-3.jpg')
     map_maze = [[int(x) for x in line.strip().split()] for line in
-                open(os.path.join('data', 'maze', 'map1.txt')).readlines()]
+                open(os.path.join('data', 'maze', 'map3.txt')).readlines()]
     for i in range(len(map_maze)):
         for j in range(len(map_maze[i])):
             if map_maze[i][j] == -1:
                 Wall(0, 54 + j * 12, 54 + i * 12)
                 player = Player(54 + j * 12 - 0, 54 + i * 12 - 0)
+            elif map_maze[i][j] == 0 and random.randint(0, 100) == 0:
+                map_maze[i][j] = -2
+                Wall(0, 54 + j * 12, 54 + i * 12)
+                Point(54 + j * 12 - 2, 54 + i * 12 - 2)
             else:
                 Wall(map_maze[i][j], 54 + j * 12, 54 + i * 12)
     while True:
@@ -367,17 +385,75 @@ def f_game4():
                 coords = pygame.mouse.get_pos()
                 if back.rect.collidepoint(coords):
                     return
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RIGHT:
+            elif event.type == pygame.KEYDOWN and not end:
+                i, j = (player.rect.y - 54) // 12, (player.rect.x - 54) // 12
+                if event.key == pygame.K_RIGHT and map_maze[i][j + 1] not in range(1, 16):
+                    if map_maze[i][j + 1] == 0 :
+                        map_maze[i][j] = -3
+                    elif map_maze[i][j + 1] == -3:
+                        map_maze[i][j] = 0
+                    elif map_maze[i][j + 1] == -2:
+                        map_maze[i][j] = -3
+                        now_maze += 10
+                    Wall(map_maze[i][j], player.rect.x, player.rect.y)
                     player.rect.x += 12
-                if event.key == pygame.K_LEFT:
+                    map_maze[i][j + 1] = -1
+
+                if event.key == pygame.K_LEFT and map_maze[i][j - 1] not in range(1, 16):
+                    if map_maze[i][j - 1] == 0:
+                        map_maze[i][j] = -3
+                    elif map_maze[i][j - 1] == -3:
+                        map_maze[i][j] = 0
+                    elif map_maze[i][j - 1] == -2:
+                        now_maze += 10
+                        map_maze[i][j] = -3
+                    Wall(map_maze[i][j], player.rect.x, player.rect.y)
                     player.rect.x -= 12
-                if event.key == pygame.K_UP:
+                    map_maze[i][j - 1] = -1
+
+                if event.key == pygame.K_UP and map_maze[i - 1][j] not in range(1, 16):
+                    if map_maze[i - 1][j] == 0:
+                        map_maze[i][j] = -3
+                    elif map_maze[i - 1][j] == -3:
+                        map_maze[i][j] = 0
+                    elif map_maze[i - 1][j] == -2:
+                        map_maze[i][j] = -3
+                        now_maze += 10
+                    Wall(map_maze[i][j], player.rect.x, player.rect.y)
                     player.rect.y -= 12
-                if event.key == pygame.K_DOWN:
+                    map_maze[i - 1][j] = -1
+
+                if event.key == pygame.K_DOWN and map_maze[i + 1][j] not in range(1, 16):
+                    if map_maze[i + 1][j] == 0:
+                        map_maze[i][j] = -3
+                    elif map_maze[i + 1][j] == -3:
+                        map_maze[i][j] = 0
+                    elif map_maze[i + 1][j] == -2:
+                        map_maze[i][j] = -3
+                        now_maze += 10
+                    Wall(map_maze[i][j], player.rect.x, player.rect.y)
                     player.rect.y += 12
+                    map_maze[i + 1][j] = -1
+        if map_maze[40][39] == -1 and not end:
+            end = True
+            now_maze += 100
+
+        if rec_maze < now_maze:
+            rec_maze = now_maze
+            RECORDS[(3, 'maze')] = now_maze
+            f = open(os.path.join('data', 'records.txt'), mode='w')
+            f.write('\n'.join([str(RECORDS[game]) for game in sorted(RECORDS)]))
+            f.close()
+
+        string_rendered = font.render(f'{now_maze} / {rec_maze}', 1, pygame.Color('red'))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.top = 50
+        intro_rect.x = 600
+
         game4_sprites.draw(screen)
         player_group.draw(screen)
+        #points_group.draw(screen)
+        screen.blit(string_rendered, intro_rect)
         pygame.display.flip()
         clock.tick(FPS)
 
