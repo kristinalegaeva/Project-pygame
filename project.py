@@ -330,13 +330,13 @@ def f_game4():
     class Wall(pygame.sprite.Sprite):
         def __init__(self, tile_type, x, y):
             super().__init__(walls_group, game4_sprites)
-            self.image = tile_images[tile_type]
+            self.image = images[tile_type]
             self.rect = self.image.get_rect().move(x, y)
 
     class Player(pygame.sprite.Sprite):
         def __init__(self, x, y):
             super().__init__(player_group, game4_sprites)
-            self.image = player_image
+            self.image = images[-1]
             self.rect = self.image.get_rect().move(x, y)
 
     clock = pygame.time.Clock()
@@ -345,12 +345,11 @@ def f_game4():
     player_group = pygame.sprite.Group()
     back = Button(load_image('back.jpg'), 600, 400)
     back.add(game4_sprites)
-    tile_images = {}
-    for x in range(16):
-        tile_images[x] = load_image('maze', f'{x}.jpg')
+    images = {}
+    for x in range(-1, 16):
+        images[x] = load_image('maze', f'{x}.jpg')
     map_maze = [[int(x) for x in line.strip().split()] for line in
-                open(os.path.join('data', 'maze', 'map2.txt')).readlines()]
-    player_image = load_image('maze', 'k.jpg')
+                open(os.path.join('data', 'maze', 'map1.txt')).readlines()]
     for i in range(len(map_maze)):
         for j in range(len(map_maze[i])):
             if map_maze[i][j] == -1:
