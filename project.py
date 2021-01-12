@@ -4,6 +4,8 @@ import pygame
 import os
 import sys
 
+from PIL import Image
+
 f = [int(x) for x in open(os.path.join('data', 'records.txt')).read().split('\n')]
 RECORDS = {(0, 'snake'): f[0], (1, '2048'): f[1], (2, 'jump'): f[2], (3, 'maze'):f[3]}
 
@@ -275,6 +277,7 @@ def f_game2():
                                 Block(i)
 
 
+
         screen.fill('#000000')
         game2_sprites.draw(screen)
         game2_sprites.update()
@@ -293,20 +296,96 @@ def f_game2():
         clock.tick(fps_game2)
 
 def f_game3():
+    def new_game(n):
+        def random_list(n):
+            m = [random.randint(1, n+1) for _ in range(n)]
+            while len(set(m)) != n:
+                m = [random.randint(1, n) for _ in range(n)]
+            return m
+        im = Image.open(os.path.join('data', 'puzzle', 'images', '5.jpg'))
+        pixels = im.load()
+        x, y = im.size
+        delta = x // n
+        folder = os.path.join('data', 'puzzle', 'test')
+        for the_file in os.listdir(folder):
+            file_path = os.path.join(folder, the_file)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+
+        for i in range(n):
+            for j in range(n):
+                x0, x1, y0, y1 = j * delta, (j + 1) * delta, i * delta, (i + 1) * delta
+                name = f'{i + 1}{j + 1}'
+                im.crop((x0, y0, x1, y1)).save(os.path.join('data', 'puzzle', 'test', f'{name}.jpg'))
+                pieces_images[name] = load_image('puzzle', 'test', f'{name}.jpg')
+
+
+
+    class Piece(pygame.sprite.Sprite):
+        def __init__(self, image, pos_x, pos_y):
+            super().__init__(game1_sprites)
+            self.image = pieces_images[image]
+            self.rect = self.image.get_rect().move(pos_x, pos_y)
+            self.name = image
+
+
     clock = pygame.time.Clock()
     game1_sprites = pygame.sprite.Group()
     back = Button(load_image('back.jpg'), 650, 450)
     back.add(game1_sprites)
+    pieces_images = {}
+    n = 6
+    new_game(n)
+    pieces_map = [str(i + 1) + str(j + 1) for i in range(n) for j in range(n)]
+    random.shuffle(pieces_map)
+    pieces_map = [[pieces_map[i + j * n] for i in range(n)] for j in range(n)]
+    pieces = []
+    for i in range(n):
+        a = []
+        for j in range(n):
+            p = Piece(pieces_map[i][j], 50 + i * (500//n), 50+ j * (500//n))
+            a.append(p)
+        pieces.append(a)
+
+    f = False
 
     while True:
         screen.fill('#000000')
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN or f and event.type == pygame.MOUSEMOTION:
+                coords = pygame.mouse.get_pos()
+                for i in range(n):
+                    for j in range(n):
+                        if 60+i*(500//n) < coords[0] < 40 + (i + 1)*(500//n) and 60+j*(500//n) < coords[1] < 40 + (j + 1)*(500//n) and not f:
+                            f = True
+                            pos_now = (i, j)
+                            break
+                if f:
+                    pieces[pos_now[0]][pos_now[1]].rect.x, pieces[pos_now[0]][pos_now[1]].rect.y = coords[0] - 250//n, coords[1] - 250//n
+            elif event.type == pygame.MOUSEBUTTONUP and f:
+                coords = pygame.mouse.get_pos()
+                for i in range(n):
+                    for j in range(n):
+                        if 60+i*(500//n) < coords[0] < 40 + (i + 1)*(500//n) and 60+j*(500//n) < coords[1] < 40 + (j + 1)*(500//n):
+                            pieces[pos_now[0]][pos_now[1]], pieces[i][j] = pieces[i][j], pieces[pos_now[0]][pos_now[1]]
+                            # Piece(pieces[pos_now[0]][pos_now[1]].name, 50 + i * (500//n), 50 + j * (500//n))
+                            # pieces[i][j] = Piece(pieces[i][j].name, 50 + pos_now[0] * (500//n), 50 + pos_now[1] * (500//n))
+                            pieces[pos_now[0]][pos_now[1]].rect.x, pieces[pos_now[0]][pos_now[1]].rect.y = 50 + pos_now[0] * (500//n), 50 + pos_now[1] * (500//n)
+                            pieces[i][j].rect.x, pieces[i][j].rect.y = 50+ i * (500//n), 50 + j * (500//n)
+
+                            f = False
+                            break
+                if f:
+                    pieces[pos_now[0]][pos_now[1]].rect.x, pieces[pos_now[0]][pos_now[1]].rect.y = 50 + pos_now[0] * (500//n), 50 + pos_now[1] * (500//n)
+                    f = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
                 coords = pygame.mouse.get_pos()
                 if back.rect.collidepoint(coords):
                     return
+        # if f:
+        #     piece_now.update(*coords)
         game1_sprites.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)
