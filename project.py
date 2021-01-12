@@ -7,7 +7,7 @@ import sys
 from PIL import Image
 
 f = [int(x) for x in open(os.path.join('data', 'records.txt')).read().split('\n')]
-RECORDS = {(0, 'snake'): f[0], (1, '2048'): f[1], (2, 'jump'): f[2], (3, 'maze'):f[3]}
+RECORDS = {(0, 'snake'): f[0], (1, 'puzzle'): f[1], (2, 'jump'): f[2], (3, 'maze'):f[3]}
 
 def terminate():
     pygame.quit()
@@ -228,6 +228,12 @@ def f_game2():
     player = Player()
     player_low = AnimatedSprite(load_image('jump', 'player_low.png'), 17, 1, 150, 240)
     player_high = AnimatedSprite(load_image('jump', 'player_high.png'), 17, 1, 150, 140)
+    player_falls = AnimatedSprite(load_image('jump', 'player_falls.png'), 4, 1, 150, 330)
+    end = fall = False
+    rec_jump = RECORDS[(2, 'jump')]
+    now_jump = 0
+    font = pygame.font.Font(None, 30)
+    end_group = pygame.sprite.Group(player_falls)
     player_now = player_low
     jump_player_group = pygame.sprite.Group()
     fon = load_image('jump', 'fon.png')
@@ -247,7 +253,7 @@ def f_game2():
                 coords = pygame.mouse.get_pos()
                 if back.rect.collidepoint(coords):
                     return
-            elif event.type == pygame.KEYDOWN:
+            elif event.type == pygame.KEYDOWN and not end:
                 if event.key == 32 and event.mod in [1, 0] and player_now.start == False:
                     if event.mod == 0:
                         player_now = player_low
@@ -255,30 +261,36 @@ def f_game2():
                     else:
                         player_now = player_high
                         n = 2
-                    if player_now.start == False:
-                        jump_player_group = pygame.sprite.Group(player_now)
-                        player_now.cur_frame = 0
-                        player_now.start = True
-                        a = []
-                        for i in range(len(blocks)):
-                            if blocks[i]:
-                                a.append(AnimatedSprite(load_image('jump', str(n)+'.png'), 1, 17, 50 + (i - n)*100, 400))
-                        for x in a:
-                            x.cur_frame = 0
-                        print(3)
-                        jump_block_group = pygame.sprite.Group(*a)
-                        print(4)
-                        blocks = new_blocks(blocks, n)
-                        print(5)
-                        print(blocks)
-                        blocks_group = pygame.sprite.Group()
-                        for i in range(len(blocks)):
-                            if blocks[i]:
-                                Block(i)
+                    jump_player_group = pygame.sprite.Group(player_now)
+                    player_now.cur_frame = 0
+                    player_now.start = True
+                    a = []
+                    for i in range(len(blocks)):
+                        if blocks[i]:
+                            a.append(AnimatedSprite(load_image('jump', str(n)+'.png'), 1, 17, 50 + (i - n)*100, 400))
+                    for x in a:
+                        x.cur_frame = 0
+                    jump_block_group = pygame.sprite.Group(*a)
+
+                    blocks = new_blocks(blocks, n)
+                    print(blocks)
+                    if blocks[1] ==0:
+                        end = True
+                    else:
+                        now_jump += 5*n
+
+                    blocks_group = pygame.sprite.Group()
+                    for i in range(len(blocks)):
+                        if blocks[i]:
+                            Block(i)
+
+
 
 
 
         screen.fill('#000000')
+
+
         game2_sprites.draw(screen)
         game2_sprites.update()
         if player_now.start:
@@ -286,14 +298,31 @@ def f_game2():
             jump_block_group.draw(screen)
             jump_player_group.update()
             jump_player_group.draw(screen)
+        elif end:
+            end_group.draw(screen)
+            end_group.update()
+            blocks_group.draw(screen)
         else:
             blocks_group.draw(screen)
             screen.blit(player.image, (150, 330))
 
         screen.blit(fon, (0, 0))
+        if rec_jump < now_jump:
+            rec_jump = now_jump
+            RECORDS[(2, 'jump')] = now_jump
+            f = open(os.path.join('data', 'records.txt'), mode='w')
+            f.write('\n'.join([str(RECORDS[game]) for game in sorted(RECORDS)]))
+            f.close()
+
+        string_rendered = font.render(f'{now_jump} / {rec_jump}', 1, pygame.Color('red'))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.top = 50
+        intro_rect.x = 600
+        screen.blit(string_rendered, intro_rect)
         screen.blit(back.image, (650, 450))
         pygame.display.flip()
         clock.tick(fps_game2)
+
 
 def f_game3():
     def new_game(n):
@@ -302,11 +331,11 @@ def f_game3():
             while len(set(m)) != n:
                 m = [random.randint(1, n) for _ in range(n)]
             return m
-        im = Image.open(os.path.join('data', 'puzzle', 'images', '5.jpg'))
+        im = Image.open(os.path.join('data', 'puzzle', 'images', '3.jpg'))
         pixels = im.load()
         x, y = im.size
         delta = x // n
-        folder = os.path.join('data', 'puzzle', 'test')
+        folder = os.path.join('data', 'puzzle', 'pieces')
         for the_file in os.listdir(folder):
             file_path = os.path.join(folder, the_file)
             if os.path.isfile(file_path):
@@ -316,8 +345,8 @@ def f_game3():
             for j in range(n):
                 x0, x1, y0, y1 = j * delta, (j + 1) * delta, i * delta, (i + 1) * delta
                 name = f'{i + 1}{j + 1}'
-                im.crop((x0, y0, x1, y1)).save(os.path.join('data', 'puzzle', 'test', f'{name}.jpg'))
-                pieces_images[name] = load_image('puzzle', 'test', f'{name}.jpg')
+                im.crop((x0, y0, x1, y1)).save(os.path.join('data', 'puzzle', 'pieces', f'{name}.jpg'))
+                pieces_images[name] = load_image('puzzle', 'pieces', f'{name}.jpg')
 
 
 
@@ -331,6 +360,7 @@ def f_game3():
 
     clock = pygame.time.Clock()
     game1_sprites = pygame.sprite.Group()
+    move_piece = pygame.sprite.Group()
     back = Button(load_image('back.jpg'), 650, 450)
     back.add(game1_sprites)
     pieces_images = {}
@@ -361,6 +391,7 @@ def f_game3():
                         if 60+i*(500//n) < coords[0] < 40 + (i + 1)*(500//n) and 60+j*(500//n) < coords[1] < 40 + (j + 1)*(500//n) and not f:
                             f = True
                             pos_now = (i, j)
+                            move_piece = pygame.sprite.Group(pieces[pos_now[0]][pos_now[1]])
                             break
                 if f:
                     pieces[pos_now[0]][pos_now[1]].rect.x, pieces[pos_now[0]][pos_now[1]].rect.y = coords[0] - 250//n, coords[1] - 250//n
@@ -387,6 +418,7 @@ def f_game3():
         # if f:
         #     piece_now.update(*coords)
         game1_sprites.draw(screen)
+        move_piece.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)
 
