@@ -158,9 +158,144 @@ def f_game1():
 
 
 def f_game2():
+
+    class Block(pygame.sprite.Sprite):
+        def __init__(self, i):
+            super().__init__(blocks_group)
+            self.image = block_image
+            self.rect = self.image.get_rect().move(50 + i*100, 400)
+
+    class Player(pygame.sprite.Sprite):
+        def __init__(self):
+            super().__init__(player_group)
+            self.image = player_image
+            self.rect = self.image.get_rect().move(50, 330)
+
+
+
+    class AnimatedSprite(pygame.sprite.Sprite):
+        def __init__(self, sheet, columns, rows, x, y):
+            super().__init__(jump_group)
+            self.frames = []
+            self.cut_sheet(sheet, columns, rows)
+            self.cur_frame = 0
+            self.image = self.frames[self.cur_frame]
+            self.rect = self.rect.move(x, y)
+            self.start = False
+
+        def cut_sheet(self, sheet, columns, rows):
+            self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                    sheet.get_height() // rows)
+            for j in range(rows):
+                for i in range(columns):
+                    frame_location = (self.rect.w * i, self.rect.h * j)
+                    self.frames.append(sheet.subsurface(pygame.Rect(
+                        frame_location, self.rect.size)))
+
+        def update(self):
+            if self.cur_frame < len(self.frames):
+                self.image = self.frames[self.cur_frame]
+                self.cur_frame += 1
+            else:
+                self.start = False
+
+    def check(a):
+        for i in range(1, len(a)):
+            if a[i-1] == 0 and a[i] == 0:
+                return False
+        return True
+
+    def new_blocks(blocks, n):
+        print('   ', blocks)
+        blocks = blocks[n:] + [random.choice([0, 1]) for _ in range(n)]
+        while not (len(blocks) == 8 and check(blocks)):
+            blocks = blocks[:-n] + [random.choice([0, 1]) for _ in range(n)]
+        return blocks
+
+
+    fps_game2 = 18
+    clock = pygame.time.Clock()
+    game2_sprites = pygame.sprite.Group()
+    blocks_group = pygame.sprite.Group()
+    jump_group = pygame.sprite.Group()
+    jump_block_group = pygame.sprite.Group()
+    back = Button(load_image('back.jpg'), 650, 450)
+    block_image = load_image('jump', 'block.png')
+    player_image = load_image('jump', 'player.png')
+    player_group = pygame.sprite.Group()
+    player = Player()
+    player_low = AnimatedSprite(load_image('jump', 'player_low.png'), 17, 1, 150, 240)
+    player_high = AnimatedSprite(load_image('jump', 'player_high.png'), 17, 1, 150, 140)
+    player_now = player_low
+    jump_player_group = pygame.sprite.Group()
+    fon = load_image('jump', 'fon.png')
+    blocks = [0] + [random.choice([1, 0]) for _ in range(7)]
+    while not check(blocks):
+        blocks = [0] + [random.choice([1, 0]) for _ in range(7)]
+    for i in range(len(blocks)):
+        if blocks[i]:
+            Block(i)
+
+    while True:
+        screen.fill('#000000')
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                coords = pygame.mouse.get_pos()
+                if back.rect.collidepoint(coords):
+                    return
+            elif event.type == pygame.KEYDOWN:
+                if event.key == 32 and event.mod in [1, 0] and player_now.start == False:
+                    if event.mod == 0:
+                        player_now = player_low
+                        n = 1
+                    else:
+                        player_now = player_high
+                        n = 2
+                    if player_now.start == False:
+                        jump_player_group = pygame.sprite.Group(player_now)
+                        player_now.cur_frame = 0
+                        player_now.start = True
+                        a = []
+                        for i in range(len(blocks)):
+                            if blocks[i]:
+                                a.append(AnimatedSprite(load_image('jump', str(n)+'.png'), 1, 17, 50 + (i - n)*100, 400))
+                        for x in a:
+                            x.cur_frame = 0
+                        print(3)
+                        jump_block_group = pygame.sprite.Group(*a)
+                        print(4)
+                        blocks = new_blocks(blocks, n)
+                        print(5)
+                        print(blocks)
+                        blocks_group = pygame.sprite.Group()
+                        for i in range(len(blocks)):
+                            if blocks[i]:
+                                Block(i)
+
+
+        screen.fill('#000000')
+        game2_sprites.draw(screen)
+        game2_sprites.update()
+        if player_now.start:
+            jump_block_group.update()
+            jump_block_group.draw(screen)
+            jump_player_group.update()
+            jump_player_group.draw(screen)
+        else:
+            blocks_group.draw(screen)
+            screen.blit(player.image, (150, 330))
+
+        screen.blit(fon, (0, 0))
+        screen.blit(back.image, (650, 450))
+        pygame.display.flip()
+        clock.tick(fps_game2)
+
+def f_game3():
     clock = pygame.time.Clock()
     game1_sprites = pygame.sprite.Group()
-    back = Button(load_image('back.jpg'), 100, 100)
+    back = Button(load_image('back.jpg'), 650, 450)
     back.add(game1_sprites)
 
     while True:
@@ -173,156 +308,6 @@ def f_game2():
                 if back.rect.collidepoint(coords):
                     return
         game1_sprites.draw(screen)
-        pygame.display.flip()
-        clock.tick(FPS)
-
-def f_game3():
-    class Tile(pygame.sprite.Sprite):
-        def __init__(self, tile_type, x, y):
-            super().__init__(tiles_group, game3_sprites)
-            self.type = tile_type
-            self.image = tile_images[tile_type]
-            self.coords = (x, y)
-            self.rect = self.image.get_rect().move(x, y)
-            self.stop = False
-
-        def collide(self, tiles, direction):
-            for tile in tiles:
-                xt, yt = tile.coords
-                x, y = self.coords
-                if direction == 'r':
-                    return y == yt and xt - x == 80 and not tile.stop
-                if direction == 'l':
-                    return y == yt and x - xt == 80  and not tile.stop
-                if direction == 'u':
-                    return x == xt and y - yt == 80 and not tile.stop
-                if direction == 'd':
-                    return x == xt and yt - y == 80 and not tile.stop
-
-
-        def update(self, e):
-            if e == pygame.K_RIGHT:
-                x, y = self.coords
-                self.stop = True if y == 460 else False
-                print(self.collide(tiles, 'r'), self.coords, self.type)
-                while self.collide(tiles, 'r') or not self.stop:
-
-                    #print(pygame.sprite.spritecollideany(self, tiles_group))
-                    x, y = self.coords
-                    x += 10
-                    self.rect = self.image.get_rect().move(x, y)
-                    self.coords = (x, y)
-                    self.stop = True if y == 460 else False
-                    tiles.clear()
-                    tiles.append(self)
-            if e == pygame.K_LEFT:
-                pass
-            if e == pygame.K_UP:
-                pass
-            if e == pygame.K_DOWN:
-                pass
-
-
-    class Fon(pygame.sprite.Sprite):
-        def __init__(self, x, y):
-            super().__init__(fon_group, game3_sprites)
-            self.type = 0
-            self.image = tile_images[0]
-            self.rect = self.image.get_rect().move(x, y)
-            self.coords = (x, y)
-
-
-    def left():
-        for i in range(6):
-            a = []
-            a_zero = []
-            for j in range(6):
-                if map_2048[i][j] != 0:
-                    a.append(map_2048[i][j])
-                else:
-                    a_zero.append(0)
-            map_2048[i] = a + a_zero
-
-    def right():
-        for i in range(6):
-            a = []
-            a_zero = []
-            for j in range(6):
-                if map_2048[i][j] != 0:
-                    a.append(map_2048[i][j])
-                else:
-                    a_zero.append(0)
-            map_2048[i] = a_zero + a
-
-    def up():
-        for j in range(6):
-            a = []
-            a_zero = []
-            for i in range(6):
-                if map_2048[i][j] != 0:
-                    a.append(map_2048[i][j])
-                else:
-                    a_zero.append(0)
-            for i in range(6):
-                a += a_zero
-                map_2048[i][j] = a[i]
-
-    def down():
-        for j in range(6):
-            a = []
-            a_zero = []
-            for i in range(6):
-                if map_2048[i][j] != 0:
-                    a.append(map_2048[i][j])
-                else:
-                    a_zero.append(0)
-            for i in range(6):
-                a_zero += a
-                map_2048[i][j] = a_zero[i]
-
-    fon_group = pygame.sprite.Group()
-    tiles_group = pygame.sprite.Group()
-    game3_sprites = pygame.sprite.Group()
-    tiles = []
-    clock = pygame.time.Clock()
-    back = Button(load_image('back.jpg'), 600, 450)
-    back.add(game3_sprites)
-    tile_images = {}
-    for x in [0, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]:
-        tile_images[x] = load_image('2048', f'{x}.jpg')
-    map_2048 = [[int(x) for x in line.strip().split()] for line in open(os.path.join('data', '2048', 'map.txt')).readlines()]
-    print(map_2048)
-    while True:
-        screen.fill('#000000')
-        tiles.clear()
-        for i in range(0, 6):
-            for j in range(0, 6):
-                pos = map_2048[j][i]
-                if pos == 0:
-                    fon = Fon(60 + i * 80, 60 + j * 80)
-                else:
-                    fon = Fon(60 + i * 80, 60 + j * 80)
-                    tile = Tile(pos, 60 + i * 80, 60 + j * 80)
-                    tiles.append(tile)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                terminate()
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                coords = pygame.mouse.get_pos()
-                if back.rect.collidepoint(coords):
-                    return
-            elif event.type == pygame.KEYDOWN:
-                tiles_group.update(event.key)
-                #pygame.draw.rect(screen, (10, 10, 10), (60 + i * 80 + 1, 60 + j * 80 + 1, 78, 78))
-                #rect = load_image(f'2048/{map_2048[i][j]}.jpg').get_rect().move(60 + i * 80, 60 + j * 80)
-                #screen.blit(load_image('2048', f'{map_2048[i][j]}.jpg'), (60 + i * 80, 60 + j * 80))
-
-        #pygame.draw.rect(screen, '#303030', (50, 50, 500, 500))
-        game3_sprites.draw(screen)
-        fon_group.draw(screen)
-        tiles_group.draw(screen)
-
-
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -364,6 +349,8 @@ def f_game4():
     images[-3] = load_image('maze', '-3.jpg')
     map_maze = [[int(x) for x in line.strip().split()] for line in
                 open(os.path.join('data', 'maze', 'map3.txt')).readlines()]
+    n = random.randint(5, 20)
+    print(n)
     for i in range(len(map_maze)):
         for j in range(len(map_maze[i])):
             if map_maze[i][j] == -1:
