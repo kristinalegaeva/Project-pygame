@@ -84,6 +84,37 @@ class Board:
         return self.get_cell(mouse_pos)
 
 
+class AnimatedSprite(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(all_sprites)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.start = False
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self, cycle=False):
+        if not cycle:
+            if self.cur_frame < len(self.frames):
+                self.image = self.frames[self.cur_frame]
+                self.cur_frame += 1
+            else:
+                self.start = False
+        else:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+
+
 class Button(pygame.sprite.Sprite):
     def __init__(self, image, pos_x, pos_y):
         super().__init__(all_sprites)
@@ -154,6 +185,9 @@ def f_game1():
         game1_sprites.draw(screen)
         board.render(snake, apple)
         screen.blit(string_rendered, intro_rect)
+        if end:
+            screen.blit(game_over, (50, 50))
+
         pygame.display.flip()
 
         clock.tick(fps_game1)
@@ -175,31 +209,7 @@ def f_game2():
 
 
 
-    class AnimatedSprite(pygame.sprite.Sprite):
-        def __init__(self, sheet, columns, rows, x, y):
-            super().__init__(jump_group)
-            self.frames = []
-            self.cut_sheet(sheet, columns, rows)
-            self.cur_frame = 0
-            self.image = self.frames[self.cur_frame]
-            self.rect = self.rect.move(x, y)
-            self.start = False
 
-        def cut_sheet(self, sheet, columns, rows):
-            self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
-                                    sheet.get_height() // rows)
-            for j in range(rows):
-                for i in range(columns):
-                    frame_location = (self.rect.w * i, self.rect.h * j)
-                    self.frames.append(sheet.subsurface(pygame.Rect(
-                        frame_location, self.rect.size)))
-
-        def update(self):
-            if self.cur_frame < len(self.frames):
-                self.image = self.frames[self.cur_frame]
-                self.cur_frame += 1
-            else:
-                self.start = False
 
     def check(a):
         for i in range(1, len(a)):
@@ -302,6 +312,7 @@ def f_game2():
             end_group.draw(screen)
             end_group.update()
             blocks_group.draw(screen)
+            screen.blit(game_over, (50, 50))
         else:
             blocks_group.draw(screen)
             screen.blit(player.image, (150, 330))
@@ -331,7 +342,7 @@ def f_game3():
             while len(set(m)) != n:
                 m = [random.randint(1, n) for _ in range(n)]
             return m
-        im = Image.open(os.path.join('data', 'puzzle', 'images', '3.jpg'))
+        im = Image.open(os.path.join('data', 'puzzle', 'images', picture+'.jpg'))
         pixels = im.load()
         x, y = im.size
         delta = x // n
@@ -348,8 +359,6 @@ def f_game3():
                 im.crop((x0, y0, x1, y1)).save(os.path.join('data', 'puzzle', 'pieces', f'{name}.jpg'))
                 pieces_images[name] = load_image('puzzle', 'pieces', f'{name}.jpg')
 
-
-
     class Piece(pygame.sprite.Sprite):
         def __init__(self, image, pos_x, pos_y):
             super().__init__(game1_sprites)
@@ -357,19 +366,21 @@ def f_game3():
             self.rect = self.image.get_rect().move(pos_x, pos_y)
             self.name = image
 
-
+    picture = '6'
+    end = False
     clock = pygame.time.Clock()
     game1_sprites = pygame.sprite.Group()
     move_piece = pygame.sprite.Group()
     back = Button(load_image('back.jpg'), 650, 450)
     back.add(game1_sprites)
     pieces_images = {}
-    n = 6
+    n = 4
     new_game(n)
     pieces_map = [str(i + 1) + str(j + 1) for i in range(n) for j in range(n)]
     random.shuffle(pieces_map)
     pieces_map = [[pieces_map[i + j * n] for i in range(n)] for j in range(n)]
     pieces = []
+    image = pygame.transform.scale(load_image('puzzle', 'images', picture+'.jpg'), (150, 150))
     for i in range(n):
         a = []
         for j in range(n):
@@ -384,7 +395,7 @@ def f_game3():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-            elif event.type == pygame.MOUSEBUTTONDOWN or f and event.type == pygame.MOUSEMOTION:
+            elif (event.type == pygame.MOUSEBUTTONDOWN or f and event.type == pygame.MOUSEMOTION) and not end:
                 coords = pygame.mouse.get_pos()
                 for i in range(n):
                     for j in range(n):
@@ -395,7 +406,7 @@ def f_game3():
                             break
                 if f:
                     pieces[pos_now[0]][pos_now[1]].rect.x, pieces[pos_now[0]][pos_now[1]].rect.y = coords[0] - 250//n, coords[1] - 250//n
-            elif event.type == pygame.MOUSEBUTTONUP and f:
+            elif event.type == pygame.MOUSEBUTTONUP and f and not end:
                 coords = pygame.mouse.get_pos()
                 for i in range(n):
                     for j in range(n):
@@ -405,6 +416,9 @@ def f_game3():
                             # pieces[i][j] = Piece(pieces[i][j].name, 50 + pos_now[0] * (500//n), 50 + pos_now[1] * (500//n))
                             pieces[pos_now[0]][pos_now[1]].rect.x, pieces[pos_now[0]][pos_now[1]].rect.y = 50 + pos_now[0] * (500//n), 50 + pos_now[1] * (500//n)
                             pieces[i][j].rect.x, pieces[i][j].rect.y = 50+ i * (500//n), 50 + j * (500//n)
+                            pieces_map[i][j], pieces_map[pos_now[0]][pos_now[1]] = pieces_map[pos_now[0]][pos_now[1]], pieces_map[i][j]
+                            if pieces_map == [[str(i + 1) + str(j + 1) for i in range(n)] for j in range(n)]:
+                                end = True
 
                             f = False
                             break
@@ -417,8 +431,12 @@ def f_game3():
                     return
         # if f:
         #     piece_now.update(*coords)
+
         game1_sprites.draw(screen)
+        screen.blit(image, (600, 50))
         move_piece.draw(screen)
+        if end:
+            screen.blit(win, (50, 50))
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -552,6 +570,8 @@ def f_game4():
         player_group.draw(screen)
         #points_group.draw(screen)
         screen.blit(string_rendered, intro_rect)
+        if end:
+            screen.blit(win, (50, 50))
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -666,9 +686,15 @@ def start_screen():
 
 pygame.init()
 FPS = 50
+
+
 size = width, height = 800, 600
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption('')
 all_sprites = pygame.sprite.Group()
+
+game_over = load_image('game over.png')
+win = load_image('win.png')
+
 
 start_screen()
