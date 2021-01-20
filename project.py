@@ -324,17 +324,17 @@ def f_jump():
                     if event.ui_element == back_btn:
                         return
             elif event.type == pygame.KEYDOWN and not end:
-                if event.key == 32 and event.mod in [0, 1] and player_now.start == False:
-                    if event.mod == 0:
-                        if SOUND:
-                            jump1_music.play()
-                        player_now = player_low
-                        n = 1
-                    else:
+                if event.key == 32 and not player_now.start:
+                    if pygame.key.get_pressed()[pygame.K_LSHIFT]:
                         if SOUND:
                             jump2_music.play()
                         player_now = player_high
                         n = 2
+                    else:
+                        if SOUND:
+                            jump1_music.play()
+                        player_now = player_low
+                        n = 1
                     jump_player_group = pygame.sprite.Group(player_now)
                     player_now.cur_frame = 0
                     player_now.start = True
@@ -1169,7 +1169,7 @@ RECORDS = {'snake': int(f[0]), 'jump': int(f[1]), 'maze': [int(x) for x in f[2].
 # создание экрана
 size = width, height = 800, 600
 screen = pygame.display.set_mode(size)
-pygame.display.set_caption('')
+pygame.display.set_caption('Mini games')
 all_sprites = pygame.sprite.Group()
 # загрузка некоторых данных
 game_over_picture = load_image('game over.png')
